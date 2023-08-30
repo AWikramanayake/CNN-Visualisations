@@ -1,7 +1,12 @@
 """
-Created on Thu Oct 21 11:09:09 2017
+Originally created on Thu Oct 21 11:09:09 2017
+by Utku Ozbulak - github.com/utkuozbulak
 
-@author: Utku Ozbulak - github.com/utkuozbulak
+Modified for this repository by Akshath Wikramanayake
+        - preprocess_image can now accept greyscale images (i.e. pil_im.shape[0] == 1)
+        - rewrote the normalisation step in preprocess_image using torch.functional.Normalise()
+        - added generate sample to create images from the datamodule
+        - removed save_image function (using torchvision.utils.save_image instead)
 """
 import os
 import copy
@@ -12,6 +17,7 @@ from matplotlib.colors import ListedColormap
 from matplotlib import pyplot as plt
 
 import torch
+from torchvision.utils import save_image
 from torch.autograd import Variable
 from torchvision import models
 import torchvision.transforms as transforms
@@ -35,7 +41,7 @@ def convert_to_grayscale(im_as_arr):
     return grayscale_im
 
 
-def save_gradient_images(gradient, file_name):
+def save_gradient_images(gradient, file_name, outpath):
     """
         Exports the original gradient image
 
@@ -43,17 +49,17 @@ def save_gradient_images(gradient, file_name):
         gradient (np arr): Numpy array of the gradient with shape (3, 224, 224)
         file_name (str): File name to be exported
     """
-    if not os.path.exists('../results'):
-        os.makedirs('../results')
+    if not os.path.exists(outpath + '/results'):
+        os.makedirs(outpath + '/results')
     # Normalize
     gradient = gradient - gradient.min()
     gradient /= gradient.max()
     # Save image
-    path_to_file = os.path.join('../results', file_name + '.png')
+    path_to_file = os.path.join(outpath + '/results', file_name + '.png')
     save_image(gradient, path_to_file)
 
 
-def save_class_activation_images(org_img, activation_map, file_name):
+def save_class_activation_images(org_img, activation_map, file_name, outpath):
     """
         Saves cam activation map and activation map on the original image
 
@@ -61,20 +67,21 @@ def save_class_activation_images(org_img, activation_map, file_name):
         org_img (PIL img): Original image
         activation_map (numpy arr): Activation map (grayscale) 0-255
         file_name (str): File name of the exported image
+        outpath (str): output folder path
     """
-    if not os.path.exists('results'):
-        os.makedirs('results')
+    if not os.path.exists(outpath + '/results'):
+        os.makedirs(outpath + '/results')
     # Grayscale activation map
     heatmap, heatmap_on_image = apply_colormap_on_image(org_img, activation_map, 'hsv')
     # Save colored heatmap
-    path_to_file = os.path.join('results', file_name+'_Cam_Heatmap.png')
-    save_image(heatmap, path_to_file)
+    path_to_file = os.path.join(outpath + '/results', file_name + '_Cam_Heatmap.png')
+    save_n_image(heatmap, path_to_file)
     # Save heatmap on iamge
-    path_to_file = os.path.join('results', file_name+'_Cam_On_Image.png')
-    save_image(heatmap_on_image, path_to_file)
+    path_to_file = os.path.join(outpath + '/results', file_name + '_Cam_On_Image.png')
+    save_n_image(heatmap_on_image, path_to_file)
     # SAve grayscale heatmap
-    path_to_file = os.path.join('results', file_name+'_Cam_Grayscale.png')
-    save_image(activation_map, path_to_file)
+    path_to_file = os.path.join(outpath + '/results', file_name + '_Cam_Grayscale.png')
+    save_n_image(activation_map, path_to_file)
     print("images saved to:" + path_to_file)
 
 
@@ -92,8 +99,8 @@ def apply_colormap_on_image(org_im, activation, colormap_name):
     # Change alpha channel in colormap to make sure original image is displayed
     heatmap = copy.copy(no_trans_heatmap)
     heatmap[:, :, 3] = 0.4
-    heatmap = Image.fromarray((heatmap*255).astype(np.uint8))
-    no_trans_heatmap = Image.fromarray((no_trans_heatmap*255).astype(np.uint8))
+    heatmap = Image.fromarray((heatmap * 255).astype(np.uint8))
+    no_trans_heatmap = Image.fromarray((no_trans_heatmap * 255).astype(np.uint8))
 
     # Apply heatmap on image
     heatmap_on_image = Image.new("RGBA", org_im.size)
@@ -108,7 +115,7 @@ def apply_heatmap(R, sx, sy):
 
         This is (so far) only used for LRP
     """
-    b = 10*((np.abs(R)**3.0).mean()**(1.0/3))
+    b = 10 * ((np.abs(R) ** 3.0).mean() ** (1.0 / 3))
     my_cmap = plt.cm.seismic(np.arange(plt.cm.seismic.N))
     my_cmap[:, 0:3] *= 0.85
     my_cmap = ListedColormap(my_cmap)
@@ -143,11 +150,11 @@ def format_np_output(np_arr):
     # Phase/Case 4: NP arr is normalized between 0-1
     # Result: Multiply with 255 and change type to make it saveable by PIL
     if np.max(np_arr) <= 1:
-        np_arr = (np_arr*255).astype(np.uint8)
+        np_arr = (np_arr * 255).astype(np.uint8)
     return np_arr
 
 
-def save_image(im, path):
+def save_n_image(im, path):
     """
         Saves a numpy matrix or PIL image as an image
     Args:
@@ -164,20 +171,17 @@ def save_image(im, path):
 def preprocess_image(pil_im, resize_im=False):
     """
         Processes image for CNNs
-
+        Modified by Akshath Wikramanayake:
     Args:
-        PIL_img (PIL_img): PIL Image or numpy array to process
+        pil_im (PIL_img): PIL Image or numpy array to process
         resize_im (bool): Resize to 224 or not
     returns:
         im_as_var (torch variable): Variable that contains processed float tensor
     """
-    # Mean and std list for channels (Imagenet)
-#    mean = [0.485, 0.456, 0.406]
-#    std = [0.229, 0.224, 0.225]
 
-    # Mean and std list for channels (MNIST simple CNN)
-    mean = [0.1307]
-    std = [0.3081]
+    # Mean and std list for channels (Imagenet)
+    mean = [0.485, 0.456, 0.406]
+    std = [0.229, 0.224, 0.225]
 
     # Ensure or transform incoming image to PIL image
     if type(pil_im) != Image.Image:
@@ -190,31 +194,16 @@ def preprocess_image(pil_im, resize_im=False):
     if resize_im:
         pil_im = pil_im.resize((224, 224), Image.ANTIALIAS)
 
-    im_as_arr = np.float32(pil_im)
-    im_as_arr = im_as_arr.transpose(2, 0, 1)  # Convert array to D,W,H
-    # Normalize the channels
-    for channel, _ in enumerate(im_as_arr):
-        im_as_arr[channel] /= 255
-        im_as_arr[channel] -= mean[channel]
-        im_as_arr[channel] /= std[channel]
-    # Convert to float tensor
-    im_as_ten = torch.from_numpy(im_as_arr).float()
-    # Add one more channel to the beginning. Tensor shape = 1,3,224,224
-    im_as_ten.unsqueeze_(0)
-    # Convert to Pytorch variable
-    im_as_var = Variable(im_as_ten, requires_grad=True)
-    return im_as_var
-
-def preprocess_image_MNIST(pil_im):
-    if type(pil_im) != Image.Image:
-        try:
-            pil_im = Image.fromarray(pil_im)
-        except Exception as e:
-            print("could not transform PIL_img to a PIL Image object. Please check input.")
-
     pil_im = transforms.functional.pil_to_tensor(pil_im).float()
-    pil_im = transforms.functional.normalize(tensor=pil_im, mean=0.1307, std=0.3081)
+
+    if pil_im.shape[0] == 3:
+        pil_im = transforms.functional.normalize(tensor=pil_im, mean=mean, std=std)
+    elif pil_im.shape[0] == 1:
+        # Mean and std for MNIST
+        pil_im = transforms.functional.normalize(tensor=pil_im, mean=0.1307, std=0.3081)
+
     pil_im.unsqueeze_(0)
+
     im_as_var = Variable(pil_im, requires_grad=True)
     return im_as_var
 
@@ -228,7 +217,7 @@ def recreate_image(im_as_var):
         recreated_im (numpy arr): Recreated image in array
     """
     reverse_mean = [-0.485, -0.456, -0.406]
-    reverse_std = [1/0.229, 1/0.224, 1/0.225]
+    reverse_std = [1 / 0.229, 1 / 0.224, 1 / 0.225]
     recreated_im = copy.copy(im_as_var.data.numpy()[0])
     for c in range(3):
         recreated_im[c] /= reverse_std[c]
@@ -275,7 +264,7 @@ def get_example_params(example_index):
                     ('../input_images/spider.png', 72))
     img_path = example_list[example_index][0]
     target_class = example_list[example_index][1]
-    file_name_to_export = img_path[img_path.rfind('/')+1:img_path.rfind('.')]
+    file_name_to_export = img_path[img_path.rfind('/') + 1:img_path.rfind('.')]
     # Read image
     original_image = Image.open(img_path).convert('RGB')
     # Process image
@@ -287,3 +276,26 @@ def get_example_params(example_index):
             target_class,
             file_name_to_export,
             pretrained_model)
+
+
+def generate_sample_images(num_samples, source_dm, outpath):
+    """
+        Generates sample images from datamodule
+    Args:
+        num_samples (int): number of samples to generate
+        source_dm (DataModule): Datamodule from which to generate samples
+        outpath (string): output folder path for generated samples
+    returns:
+
+    """
+    source_dm.setup()
+    labels = []
+
+    for i in range(num_samples):
+        idx = np.random.randint(low=0, high=len(source_dm.test))
+        example = source_dm.test[idx]
+        filename = outpath + '/Sample ' + str(i) + ".png"
+        save_image(example[0], fp=filename)
+        labels.append(example[1])
+
+    return labels
