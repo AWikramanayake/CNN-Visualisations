@@ -7,12 +7,13 @@ import os
 
 DATA_PATH = os.path.join(os.getcwd(), 'data')
 BATCH_SIZE = 256 if torch.cuda.is_available() else 64
-mean = 0.1307
-std = 0.3081
 
 class MNISTDataModule(L.LightningDataModule):
     def __init__(self, data_dir=DATA_PATH):
         self.data_dir = data_dir
+        self.mean = 0.1307
+        self.std = 0.3081
+        self.num_classes = 10
         super().__init__()
 
     def prepare_data(self):
@@ -24,7 +25,7 @@ class MNISTDataModule(L.LightningDataModule):
         self.transform = transforms.Compose(
             [
                 transforms.ToTensor(),
-                transforms.Normalize((mean,), (std,)),
+                transforms.Normalize((self.mean,), (self.std,)),
             ]
         )
         # Assign train/val datasets for use in dataloaders

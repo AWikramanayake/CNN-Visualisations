@@ -7,6 +7,7 @@ Modified for this repository by Akshath Wikramanayake
         - rewrote the normalisation step in preprocess_image using torch.functional.Normalise()
         - added generate sample to create images from the datamodule
         - removed save_image function (using torchvision.utils.save_image instead)
+        - modified preprocess_image to use mean and std from the datamodule for transforms if they exist
 """
 import os
 import copy
@@ -168,7 +169,7 @@ def save_n_image(im, path):
     print("image saved to: " + path)
 
 
-def preprocess_image(pil_im, resize_im=False):
+def preprocess_image(pil_im, resize_im=False, source_dm=None):
     """
         Processes image for CNNs
         Modified by Akshath Wikramanayake:
@@ -179,9 +180,13 @@ def preprocess_image(pil_im, resize_im=False):
         im_as_var (torch variable): Variable that contains processed float tensor
     """
 
-    # Mean and std list for channels (Imagenet)
-    mean = [0.485, 0.456, 0.406]
-    std = [0.229, 0.224, 0.225]
+    if hasattr(source_dm, 'mean') and hasattr(source_dm, 'std'):
+        mean = source_dm.mean
+        std = source_dm.std
+    else:
+        # Mean and std list for channels (Imagenet)
+        mean = [0.485, 0.456, 0.406]
+        std = [0.229, 0.224, 0.225]
 
     # Ensure or transform incoming image to PIL image
     if type(pil_im) != Image.Image:
@@ -201,7 +206,7 @@ def preprocess_image(pil_im, resize_im=False):
     elif pil_im.shape[0] == 1:
         # Mean and std for MNIST
         pil_im = transforms.functional.normalize(tensor=pil_im, mean=0.1307, std=0.3081)
-
+    print('transformed using mean, std = ' + str(mean) + ", " + str(std))
     pil_im.unsqueeze_(0)
 
     im_as_var = Variable(pil_im, requires_grad=True)
