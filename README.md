@@ -11,9 +11,11 @@ Beyond that, the goals are to implement more XAI techniques and to allow the exp
 ### Project Updates:
 
 * GradCam visualisation is largely operational.
+* ScoreCam is operational in some cases.
 * The visualisations can be applied to random samples drawn from a datamodule.
 
 ### Updates in progress:
 
 * Implementing more visualisation techniques.
 * Selectively applying visualisations to incorrect and low confidence guesses by the model.
+* Adding support for pretrained models.
