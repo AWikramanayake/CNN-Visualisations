@@ -22,7 +22,8 @@ Here are VGG16's top 30 guesses for a suitable label:
 <img src="https://raw.githubusercontent.com/AWikramanayake/CNN-Visualisations/master/goose%20mango%20vgg16%20predictions.png" width="650" />
 </p>
 <p align="center">
-  VGG16 model predictions for the image (the numbers are the relative percentage confidence levels for a given label)
+  VGG16 model predictions for the image. </br>
+  The format: label rank, label ID, label description, % confidence (relative).
 </p>
 </br>
 
