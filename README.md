@@ -8,7 +8,7 @@ The goal of this project is to create a robust framework to streamline the proce
 Consider the task of image classification using a CNN. For example, using a VGG16 model pretrained on the ImageNet dataset to label this image:
 
 <p align="center">
-<img src="https://raw.githubusercontent.com/AWikramanayake/CNN-Visualisations/master/goose%20mango%20base.png" width="650"/>
+<img src="https://raw.githubusercontent.com/AWikramanayake/CNN-Visualisations/master/misc_assets/goose%20mango%20base.png" width="650"/>
 </p>
 <p align="center">
 Fig 1: Goose (left) and Mango (right)</br>
@@ -19,7 +19,7 @@ Clarification: "Goose" and "Mango" are their names, NOT the target classes for c
 Here are VGG16's top 30 guesses for a suitable label:
 
 <p align="center">
-<img src="https://raw.githubusercontent.com/AWikramanayake/CNN-Visualisations/master/goose%20mango%20vgg16%20predictions.png" width="650" />
+<img src="https://raw.githubusercontent.com/AWikramanayake/CNN-Visualisations/master/misc_assets/goose%20mango%20vgg16%20predictions.png" width="650" />
 </p>
 <p align="center">
   VGG16 model predictions for the image. </br>
@@ -30,7 +30,7 @@ Here are VGG16's top 30 guesses for a suitable label:
 As you can see, VGG16's top guess is correct: Mango is indeed a Labrador retreiver. But suppose we wanted to look deeper into *how* VGG16 makes these guesses. One way we could do that is to use explainable AI (XAI) methods such as [GradCam](https://arxiv.org/abs/1610.02391) to identify which parts of the image have the biggest impact on the classification score.
 
 <p align="center">
-<img src="https://raw.githubusercontent.com/AWikramanayake/CNN-Visualisations/master/goose%20mango%20vgg%20target_%20208_Cam_On_Image_672p.png" />
+<img src="https://raw.githubusercontent.com/AWikramanayake/CNN-Visualisations/master/misc_assets/goose%20mango%20vgg%20target_%20208_Cam_On_Image_672p.png" />
 </p>
 <p align="center">
   Left: Heatmap of regions contributing to classification label 208, "Labrador retreiver".</br>
@@ -45,7 +45,7 @@ For the label "Egyptian cat" (VGG16's 14th most confident guess), while some reg
 But wait, VGG16's 12th most confident guess, and it's most confident non-dog guess, was "dishwasher"! What's going on there? There clearly isn't a dishawasher anywhere in the image, so let's examine where VGG16 thinks it can see one:
 
 <p align="center">
-<img src="https://raw.githubusercontent.com/AWikramanayake/CNN-Visualisations/master/goose%20mango%20vgg%20target_%20534_Cam_On_Image%20and%20zoom.png" />
+<img src="https://raw.githubusercontent.com/AWikramanayake/CNN-Visualisations/master/misc_assets/goose%20mango%20vgg%20target_%20534_Cam_On_Image%20and%20zoom.png" />
 </p>
 <p align="center">
   Left: Heatmap of regions contributing to classification label 534, "Dishwasher".</br>
@@ -64,7 +64,7 @@ That's all well and good, but does XAI *really* have a concrete use in studying 
 Consider [this Taiwanese study](https://www.mdpi.com/1660-4601/18/3/961) that used CNNs to perform species recognition tasks on trees. XAI tools helped researchers identify one of the causes of the model's unexpectedly poor performace: too many of the pictures in their dataset contained buildings in the background, causing the model to learn to focus on the buildings rather than the trees in some cases.
 
 <p align="center">
-<img src="https://raw.githubusercontent.com/AWikramanayake/CNN-Visualisations/master/CNN%20Bias%20example.png" width="650"/>
+<img src="https://raw.githubusercontent.com/AWikramanayake/CNN-Visualisations/master/misc_assets/CNN%20Bias%20example.png" width="650"/>
 </p>
 <p align="center">
   Figure from the linked study demonstrating how XAI visualisations were used to show that the model was incorrectly focusing on the buildings instead of the trees, and showing that the issue has been mitigated in the proposed model.</br>
