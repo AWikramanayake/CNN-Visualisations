@@ -87,6 +87,7 @@ Beyond that, the next goals are to implement more XAI techniques and to allow th
 
 ### Project Updates:
 
+* alexnet, vgg16, and resnet (and possibly others with same/similar model structures) now work
 * GradCam and ScoreCam are currently being implemented.
 * The visualisations can be applied to random samples drawn from a suitably constructed datamodule.
 </br></br>
