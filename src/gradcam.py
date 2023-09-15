@@ -1,13 +1,15 @@
 """
-Created on Thu Oct 26 11:06:51 2017
-
+Originally created on Thu Oct 26 11:06:51 2017
 @author: Utku Ozbulak - github.com/utkuozbulak
+
+Changed for this project by Akshath Wikramanayake:
+- altered the forward pass loops to work with vgg16 and resnet in addition to alexnet
 """
 from PIL import Image
 import numpy as np
 import torch
 
-from vis_backbone.misc_functions import get_example_params, save_class_activation_images
+from src.misc_functions import get_example_params, save_class_activation_images
 
 
 class CamExtractor():
@@ -27,11 +29,25 @@ class CamExtractor():
             Does a forward pass on convolutions, hooks the function at given layer
         """
         conv_output = None
-        for module_pos, module in self.model.features._modules.items():
-            x = module(x)  # Forward
-            if int(module_pos) == self.target_layer:
-                x.register_hook(self.save_gradient)
-                conv_output = x  # Save the convolution output on that layer
+
+        if hasattr(self.model, 'features'):
+            for module_pos, module in self.model.features._modules.items():
+                x = module(x)  # Forward
+                if int(module_pos) == self.target_layer:
+                    x.register_hook(self.save_gradient)
+                    conv_output = x  # Save the convolution output on that layer
+                    print(module)
+        else:
+            x = self.model.conv1(x)
+            x = self.model.bn1(x)
+            x = self.model.relu(x)
+            x = self.model.maxpool(x)
+            x = self.model.layer1(x)
+            x = self.model.layer2(x)
+            x = self.model.layer3(x)
+            x = self.model.layer4(x)
+            x.register_hook(self.save_gradient)
+            conv_output = x
         return conv_output, x
 
     def forward_pass(self, x):
@@ -40,9 +56,19 @@ class CamExtractor():
         """
         # Forward pass on the convolutions
         conv_output, x = self.forward_pass_on_convolutions(x)
+        x = torch.nn.functional.adaptive_avg_pool2d(x, output_size=(1, 1))
+
+        # Intended specifically for ResNet. Will have to modify if other models have an avgpool attribute.
+        if hasattr(self.model, 'avgpool'):
+            x = self.model.avgpool(x)
+
         x = x.view(x.size(0), -1)  # Flatten
+
         # Forward pass on the classifier
-        x = self.model.classifier(x)
+        if hasattr(self.model, 'classifier'):
+            x = self.model.classifier(x)
+        else:
+            x = self.model.fc(x)
         return conv_output, x
 
 
@@ -66,9 +92,21 @@ class GradCam():
         # Target for backprop
         one_hot_output = torch.FloatTensor(1, model_output.size()[-1]).zero_()
         one_hot_output[0][target_class] = 1
+
         # Zero grads
-        self.model.features.zero_grad()
-        self.model.classifier.zero_grad()
+        if hasattr(self.model, 'features'):
+            self.model.features.zero_grad()
+        else:
+            self.model.conv1.zero_grad()
+            self.model.bn1.zero_grad()
+            self.model.relu.zero_grad()
+            self.model.maxpool.zero_grad()
+            self.model.layer1.zero_grad()
+            self.model.layer2.zero_grad()
+            self.model.layer3.zero_grad()
+            self.model.layer4.zero_grad()
+            self.model.fc.zero_grad()
+            self.model.fc.zero_grad()
         # Backward pass with specified target
         model_output.backward(gradient=one_hot_output, retain_graph=True)
         # Get hooked gradients

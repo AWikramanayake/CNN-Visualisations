@@ -3,11 +3,11 @@ Originally created on Thu Oct 21 11:09:09 2017
 by Utku Ozbulak - github.com/utkuozbulak
 
 Modified for this repository by Akshath Wikramanayake
-        - preprocess_image can now accept greyscale images (i.e. pil_im.shape[0] == 1)
-        - rewrote the normalisation step in preprocess_image using torch.functional.Normalise()
         - added generate sample to create images from the datamodule
-        - removed save_image function (using torchvision.utils.save_image instead)
         - modified preprocess_image to use mean and std from the datamodule for transforms if they exist
+        - added generate samples to generate sample images from a datamodule
+        - added get_pretrained_guesses to get the top n guesses/confidences from pretrained models
+        - added apply_default_transform to facilitate getting pretrained guesses
 """
 import os
 import copy
@@ -42,7 +42,7 @@ def convert_to_grayscale(im_as_arr):
     return grayscale_im
 
 
-def save_gradient_images(gradient, file_name, outpath):
+def save_gradient_images(gradient, file_name):
     """
         Exports the original gradient image
 
@@ -50,17 +50,17 @@ def save_gradient_images(gradient, file_name, outpath):
         gradient (np arr): Numpy array of the gradient with shape (3, 224, 224)
         file_name (str): File name to be exported
     """
-    if not os.path.exists(outpath + '/results'):
-        os.makedirs(outpath + '/results')
+    if not os.path.exists('/results'):
+        os.makedirs('/results')
     # Normalize
     gradient = gradient - gradient.min()
     gradient /= gradient.max()
     # Save image
-    path_to_file = os.path.join(outpath + '/results', file_name + '.png')
+    path_to_file = os.path.join('/results', file_name + '.png')
     save_image(gradient, path_to_file)
 
 
-def save_class_activation_images(org_img, activation_map, file_name, outpath):
+def save_class_activation_images(org_img, activation_map, file_name):
     """
         Saves cam activation map and activation map on the original image
 
@@ -68,20 +68,19 @@ def save_class_activation_images(org_img, activation_map, file_name, outpath):
         org_img (PIL img): Original image
         activation_map (numpy arr): Activation map (grayscale) 0-255
         file_name (str): File name of the exported image
-        outpath (str): output folder path
     """
-    if not os.path.exists(outpath + '/results'):
-        os.makedirs(outpath + '/results')
+    if not os.path.exists('/results'):
+        os.makedirs('/results')
     # Grayscale activation map
     heatmap, heatmap_on_image = apply_colormap_on_image(org_img, activation_map, 'hsv')
     # Save colored heatmap
-    path_to_file = os.path.join(outpath + '/results', file_name + '_Cam_Heatmap.png')
+    path_to_file = os.path.join('/results', file_name + '_Cam_Heatmap.png')
     save_n_image(heatmap, path_to_file)
     # Save heatmap on iamge
-    path_to_file = os.path.join(outpath + '/results', file_name + '_Cam_On_Image.png')
+    path_to_file = os.path.join('/results', file_name + '_Cam_On_Image.png')
     save_n_image(heatmap_on_image, path_to_file)
     # SAve grayscale heatmap
-    path_to_file = os.path.join(outpath + '/results', file_name + '_Cam_Grayscale.png')
+    path_to_file = os.path.join('/results', file_name + '_Cam_Grayscale.png')
     save_n_image(activation_map, path_to_file)
     print("images saved to:" + path_to_file)
 
@@ -104,6 +103,7 @@ def apply_colormap_on_image(org_im, activation, colormap_name):
     no_trans_heatmap = Image.fromarray((no_trans_heatmap * 255).astype(np.uint8))
 
     # Apply heatmap on image
+    org_im = org_im.resize((224, 224))
     heatmap_on_image = Image.new("RGBA", org_im.size)
     heatmap_on_image = Image.alpha_composite(heatmap_on_image, org_im.convert('RGBA'))
     heatmap_on_image = Image.alpha_composite(heatmap_on_image, heatmap)
@@ -169,13 +169,14 @@ def save_n_image(im, path):
     print("image saved to: " + path)
 
 
-def preprocess_image(pil_im, resize_im=False, source_dm=None):
+def preprocess_image(pil_im, resize_im=True, source_dm=None):
     """
         Processes image for CNNs
         Modified by Akshath Wikramanayake:
     Args:
         pil_im (PIL_img): PIL Image or numpy array to process
         resize_im (bool): Resize to 224 or not
+        source_dm (datamodule): (If applicable) Datamodule from which images are taken, to get mean/std
     returns:
         im_as_var (torch variable): Variable that contains processed float tensor
     """
@@ -199,17 +200,19 @@ def preprocess_image(pil_im, resize_im=False, source_dm=None):
     if resize_im:
         pil_im = pil_im.resize((224, 224), Image.ANTIALIAS)
 
-    pil_im = transforms.functional.pil_to_tensor(pil_im).float()
-
-    if pil_im.shape[0] == 3:
-        pil_im = transforms.functional.normalize(tensor=pil_im, mean=mean, std=std)
-    elif pil_im.shape[0] == 1:
-        # Mean and std for MNIST
-        pil_im = transforms.functional.normalize(tensor=pil_im, mean=0.1307, std=0.3081)
-    print('transformed using mean, std = ' + str(mean) + ", " + str(std))
-    pil_im.unsqueeze_(0)
-
-    im_as_var = Variable(pil_im, requires_grad=True)
+    im_as_arr = np.float32(pil_im)
+    im_as_arr = im_as_arr.transpose(2, 0, 1)  # Convert array to D,W,H
+    # Normalize the channels
+    for channel, _ in enumerate(im_as_arr):
+        im_as_arr[channel] /= 255
+        im_as_arr[channel] -= mean[channel]
+        im_as_arr[channel] /= std[channel]
+    # Convert to float tensor
+    im_as_ten = torch.from_numpy(im_as_arr).float()
+    # Add one more channel to the beginning. Tensor shape = 1,3,224,224
+    im_as_ten.unsqueeze_(0)
+    # Convert to Pytorch variable
+    im_as_var = Variable(im_as_ten, requires_grad=True)
     return im_as_var
 
 
@@ -304,3 +307,37 @@ def generate_sample_images(num_samples, source_dm, outpath):
         labels.append(example[1])
 
     return labels
+
+
+def get_pretrained_guesses(model_out, num_guesses):
+    """
+        Obtains the top label guesses of a model trained on the ImageNet dataset
+    Args:
+        model_out (tensor): model eval output
+        num_guesses (int): number of top guesses to output
+    returns:
+
+    """
+    with open('imagenet1000_clsidx_to_labels.txt') as f:
+        classes = [line.strip() for line in f.readlines()]
+
+    percentage = torch.nn.functional.softmax(model_out, dim=1)[0] * 100
+
+    _, indices = torch.sort(model_out, descending=True)
+    pos = 1
+
+    for idx in indices[0][:num_guesses]:
+        print(str(pos) + ': ' + classes[idx] + str(percentage[idx].item()))
+        pos += 1
+
+
+def apply_default_transform(image):
+    transform = transforms.Compose([
+        transforms.Resize(224),
+        transforms.ToTensor(),
+        transforms.Normalize(
+            mean=[0.485, 0.456, 0.406],
+            std=[0.229, 0.224, 0.225]
+        )])
+
+    return transform(image)
