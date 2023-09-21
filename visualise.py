@@ -7,6 +7,13 @@ import torch
 
 
 def run_gradcam_on_dir(sample_path, sample_labels, grad_model, output_dir):
+    """
+    :param sample_path: (str) directory with images on which gradcam is to be run
+    :param sample_labels: (list) (optional) list of labels/target classes. If None, activation map will be performed with label of highest confidence
+    :param grad_model: (lightningModule) the model to test
+    :param output_dir: (str) (optional) directory to output cam heatmaps to. If empty, images will be written into the source directory
+    :return: Nothing
+    """
     if not output_dir:
         output_dir = sample_path
     img_list = glob.glob(sample_path + "/*.png")
@@ -31,6 +38,13 @@ def run_gradcam_on_dir(sample_path, sample_labels, grad_model, output_dir):
 
 
 def run_scorecam_on_dir(sample_path, grad_model, output_dir=None):
+    """
+    :param sample_path: (str) directory with images on which scorecam is to be run
+    :param sample_labels: (list, int) (optional) list of labels/target classes. If None, activation map will be performed with label of highest confidence
+    :param grad_model: (lightningModule) the model to test
+    :param output_dir: (str) (optional) directory to output cam heatmaps to. If empty, images will be written into the source directory
+    :return: Nothing
+    """
     if not output_dir:
         output_dir = sample_path
     img_list = glob.glob(sample_path + "/*.png")
@@ -52,6 +66,14 @@ def run_scorecam_on_dir(sample_path, grad_model, output_dir=None):
 
 
 def cam_on_image(camtype, image, targets, outname, model):
+    """
+    :param camtype: (str) "gradcam" or "scorecam"
+    :param image: (PIL image) image on which cam is to be performed
+    :param targets: (list, int) (optional) target class(es) for activation map. If empty, will default to target with highest confidence
+    :param outname: output filename
+    :param model: (LightningModule) the model to test
+    :return: Nothing
+    """
     prep_img = preprocess_image(image)
     file_name_to_export = outname
     img_t = apply_default_transform(image)
