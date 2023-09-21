@@ -9,8 +9,6 @@ from PIL import Image
 import numpy as np
 import torch
 
-from src.misc_functions import get_example_params, save_class_activation_images
-
 
 class CamExtractor():
     """

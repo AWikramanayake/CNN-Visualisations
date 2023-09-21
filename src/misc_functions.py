@@ -18,7 +18,7 @@ from matplotlib.colors import ListedColormap
 from matplotlib import pyplot as plt
 
 import torch
-from torchvision.utils import save_image
+import torchvision
 from torch.autograd import Variable
 from torchvision import models
 import torchvision.transforms as transforms
@@ -60,7 +60,7 @@ def save_gradient_images(gradient, file_name):
     save_image(gradient, path_to_file)
 
 
-def save_class_activation_images(org_img, activation_map, file_name):
+def save_class_activation_images(org_img, activation_map, file_name, out_dir=None):
     """
         Saves cam activation map and activation map on the original image
 
@@ -68,21 +68,27 @@ def save_class_activation_images(org_img, activation_map, file_name):
         org_img (PIL img): Original image
         activation_map (numpy arr): Activation map (grayscale) 0-255
         file_name (str): File name of the exported image
+        out_dir: (str): OPTIONAL path to output directory to save cam images
     """
-    if not os.path.exists('/results'):
-        os.makedirs('/results')
+    if out_dir:
+        output_dir = out_dir
+    else:
+        output_dir = 'results/'
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
     # Grayscale activation map
     heatmap, heatmap_on_image = apply_colormap_on_image(org_img, activation_map, 'hsv')
     # Save colored heatmap
-    path_to_file = os.path.join('/results', file_name + '_Cam_Heatmap.png')
-    save_n_image(heatmap, path_to_file)
+    # path_to_file = os.path.join(output_dir, file_name + '_Cam_Heatmap.png')
+    # save_image(heatmap, path_to_file)
     # Save heatmap on iamge
-    path_to_file = os.path.join('/results', file_name + '_Cam_On_Image.png')
-    save_n_image(heatmap_on_image, path_to_file)
+    path_to_file = os.path.join(output_dir, file_name + '_Cam_On_Image.png')
+    save_image(heatmap_on_image, path_to_file)
     # SAve grayscale heatmap
-    path_to_file = os.path.join('/results', file_name + '_Cam_Grayscale.png')
-    save_n_image(activation_map, path_to_file)
-    print("images saved to:" + path_to_file)
+    # path_to_file = os.path.join(output_dir, file_name + '_Cam_Grayscale.png')
+    # save_image(activation_map, path_to_file)
 
 
 def apply_colormap_on_image(org_im, activation, colormap_name):
@@ -155,7 +161,7 @@ def format_np_output(np_arr):
     return np_arr
 
 
-def save_n_image(im, path):
+def save_image(im, path):
     """
         Saves a numpy matrix or PIL image as an image
     Args:
@@ -252,40 +258,6 @@ def get_positive_negative_saliency(gradient):
     return pos_saliency, neg_saliency
 
 
-def get_example_params(example_index):
-    """
-        Gets used variables for almost all visualizations, like the image, model etc.
-
-    Args:
-        example_index (int): Image id to use from examples
-
-    returns:
-        original_image (numpy arr): Original image read from the file
-        prep_img (numpy_arr): Processed image
-        target_class (int): Target class for the image
-        file_name_to_export (string): File name to export the visualizations
-        pretrained_model(Pytorch model): Model to use for the operations
-    """
-    # Pick one of the examples
-    example_list = (('../input_images/snake.png', 56),
-                    ('../input_images/cat_dog.png', 243),
-                    ('../input_images/spider.png', 72))
-    img_path = example_list[example_index][0]
-    target_class = example_list[example_index][1]
-    file_name_to_export = img_path[img_path.rfind('/') + 1:img_path.rfind('.')]
-    # Read image
-    original_image = Image.open(img_path).convert('RGB')
-    # Process image
-    prep_img = preprocess_image(original_image)
-    # Define model
-    pretrained_model = models.alexnet(pretrained=True)
-    return (original_image,
-            prep_img,
-            target_class,
-            file_name_to_export,
-            pretrained_model)
-
-
 def generate_sample_images(num_samples, source_dm, outpath):
     """
         Generates sample images from datamodule
@@ -303,13 +275,13 @@ def generate_sample_images(num_samples, source_dm, outpath):
         idx = np.random.randint(low=0, high=len(source_dm.test))
         example = source_dm.test[idx]
         filename = outpath + '/Sample ' + str(i) + ".png"
-        save_image(example[0], fp=filename)
+        torchvision.utils.save_image(example[0], fp=filename)
         labels.append(example[1])
 
     return labels
 
 
-def get_pretrained_guesses(model_out, num_guesses):
+def get_pretrained_guesses(model_out, num_guesses=10):
     """
         Obtains the top label guesses of a model trained on the ImageNet dataset
     Args:
@@ -339,5 +311,4 @@ def apply_default_transform(image):
             mean=[0.485, 0.456, 0.406],
             std=[0.229, 0.224, 0.225]
         )])
-
     return transform(image)

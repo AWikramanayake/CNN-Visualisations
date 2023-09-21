@@ -8,7 +8,7 @@ from datetime import datetime
 import os
 from torchvision import models
 import torch
-from visualise import run_gradcam, run_scorecam
+from visualise import cam_on_image, run_gradcam_on_dir, run_scorecam_on_dir
 from PIL import Image
 
 """
@@ -26,14 +26,15 @@ imgpath = "data/Custom_test_images/goose_mango.png"
 train_model = False
 exp_name = 'test experiment/'
 save_results = True
-fname = exp_name + "goose mango vgg16 "
+fname = exp_name + "goose mango resnet "
+camtype = "gradcam"
 
 if not exp_name:
     dt_string = datetime.now().strftime("%d-%m-%Y %H_%M_%S")
     exp_name = "Experiment " + dt_string
 
 if save_results:
-    if not os.path.exists("results"):
+    if not os.path.exists("results/" + exp_name):
         os.makedirs("results/" + exp_name)
 
 if train_model:
@@ -46,15 +47,9 @@ elif not datamodule:
 
 model.eval()
 
-if imgpath:
-    img_t = apply_default_transform(img)
-    batch_t = torch.unsqueeze(img_t, 0)
-    out = model(batch_t)
-    get_pretrained_guesses(out, 15)
-
-targets = [207, 208]
+targets = [273, 225, 207, 208]
 
 
 # sample_labels = generate_sample_images(5, datamodule, out_foldername)
 
-run_gradcam(img, fname, targets, model)
+cam_on_image(camtype, img, targets, fname, model)
