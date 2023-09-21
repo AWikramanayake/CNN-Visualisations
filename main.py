@@ -7,7 +7,6 @@ from src.misc_functions import get_pretrained_guesses, apply_default_transform
 from datetime import datetime
 import os
 from torchvision import models
-import torch
 from visualise import cam_on_image, run_gradcam_on_dir, run_scorecam_on_dir
 from PIL import Image
 
